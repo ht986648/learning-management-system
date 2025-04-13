@@ -2,17 +2,23 @@ const { Router } = require('express');
 const userRouter = Router();
 const { userModel } = require('../db'); 
 const jwt=require('jsonwebtoken');
-const JWT_USER_PASSOWRD="123abc";
-
+const JWT_USER_PASSOWRD=require('../config');
+const bcrypt = require('bcrypt');
 // POST route for signing up a user
 userRouter.post('/signup', async (req, res) => {
   const { email, password, firstname, lastname } = req.body;
-
+    
+const hashPassword = async (plainPassword) => {
+  const saltRounds = 10;
+  const hashed = await bcrypt.hash(plainPassword, saltRounds);
+  return hashed;
+}
+     const hashedPassword=await hashPassword(password);
   try {
     // Attempt to create a new user in the database
     const newUser = await userModel.create({
       email,
-      password,
+     password: hashedPassword,
       firstname,
       lastname
     });
@@ -41,10 +47,23 @@ if(user){
   const token=  jwt.sign({
         id:user._id,
 
+       
+
     },JWT_USER_PASSOWRD);
-    res.json({
-     token:token
-    });
+// // do the cookie logic 
+const cookie= res.cookie('authToken', token, {
+  httpOnly: true,       // Prevents JS access (secure)
+  secure: true,         // Use true if you're using HTTPS
+  sameSite: 'Strict',   // Adjust depending on frontend/backend domain setup
+  maxAge: 60 * 60 * 1000 // 1 hour
+});
+
+res.json({
+  token: token,
+ 
+  
+});
+
 }else{
     res.status(403).json({
         message:"INCORRECT CREDENTIALS"
@@ -55,6 +74,7 @@ if(user){
 
 
 userRouter.get('/purchases', (req, res) => {
+    res.cookie('authToken','hello world');
   res.json({
     message: 'User past purchased courses'
   });
